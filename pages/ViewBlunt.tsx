@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { TextArea } from '../components/Input';
 import { getBlunt, acknowledgeBlunt, denyBlunt, addReply } from '../services/storageService';
 import { BluntMessage } from '../types';
-import { Lock, Clock, Shield, CheckCircle, Send, FileText, UserPlus } from 'lucide-react';
+import { Lock, Clock, Shield, CheckCircle, Send, FileText, UserPlus, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const ViewBlunt: React.FC = () => {
@@ -188,18 +188,14 @@ export const ViewBlunt: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="bg-brand-cream/50 p-6 rounded-2xl text-center flex flex-col items-center gap-4">
-                  <UserPlus size={32} className="text-brand-deep/40" />
-                  <div>
-                    <h3 className="font-bold text-brand-deep">Sign Up to Reply</h3>
-                    <p className="text-xs text-brand-deep/60 mt-1 max-w-xs mx-auto">
-                      To respond to this blunt, your identity must be verified.
-                    </p>
-                  </div>
-                  <Button onClick={() => navigate(`/signup?returnTo=/view/${blunt.id}`)} className="h-10 text-sm">
-                    Create Account
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => navigate(`/signup?returnTo=/view/${blunt.id}`)}
+                  fullWidth
+                  className="bg-brand-deep text-white shadow-xl flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={20} />
+                  Reply to Blunt
+                </Button>
               )
             ) : (
               <p className="text-center text-xs text-brand-deep/40 font-medium">Response sent.</p>
