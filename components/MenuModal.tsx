@@ -3,9 +3,10 @@ import { X, User as UserIcon, ChevronRight, LogOut, Activity, MessageSquare, Has
 import { useAuth } from '../context/AuthContext';
 import { Input } from './Input';
 import { Button } from './Button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { COUNTRIES } from '../constants/countries';
+import { AVATAR_OPTIONS } from '../constants/avatars';
 
 interface MenuModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface MenuModalProps {
 
 export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSupport, initialView = 'main' }) => {
     const { user, updateProfile, logout } = useAuth();
+    const navigate = useNavigate();
 
     // Navigation State
     const [view, setView] = useState<'main' | 'settings'>('main');
@@ -37,7 +39,7 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
             setMobile(user.mobile || '');
             setGender(user.gender || 'prefer_not_to_say');
             setUsername(user.username || '');
-            setAvatar(user.avatar || '');
+            setAvatar(user.avatar || AVATAR_OPTIONS[0]);
             setCountry(user.country || 'US');
         }
     }, [isOpen, user, initialView]);
@@ -46,9 +48,10 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
         updateProfile({ name, email, mobile, gender: gender as any, username, avatar, country });
     };
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         onClose();
+        navigate('/auth');
     };
 
     if (!isOpen) return null;
@@ -82,15 +85,23 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
                 <div className="p-6 overflow-y-auto">
                     {view === 'main' ? (
                         <div className="space-y-6">
-                            {/* User Info */}
-                            <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm">
-                                <div className="w-12 h-12 rounded-full bg-brand-deep text-white flex items-center justify-center font-black text-xl">
-                                    {user.name.charAt(0)}
+                            {/* User Info - Clickable to go to settings */}
+                            <div
+                                onClick={() => setView('settings')}
+                                className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm cursor-pointer hover:bg-white/80 transition-colors group"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-brand-deep text-white flex items-center justify-center font-black text-xl overflow-hidden">
+                                    {user.avatar ? (
+                                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        user.name.charAt(0)
+                                    )}
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-brand-deep">{user.name}</h3>
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-brand-deep group-hover:text-brand-bright transition-colors">{user.name}</h3>
                                     <p className="text-xs text-brand-deep/50">{user.email || 'Guest User'}</p>
                                 </div>
+                                <ChevronRight size={16} className="text-brand-deep/30 group-hover:translate-x-1 transition-transform" />
                             </div>
 
                             {/* Menu Items */}
@@ -141,23 +152,26 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
                                     {/* Avatar Picker */}
                                     <div>
                                         <label className="font-bold text-xs text-brand-deep/60 uppercase tracking-wider ml-4 mb-2 block">Avatar</label>
-                                        <div className="flex gap-2 overflow-x-auto pb-2 px-2 no-scrollbar">
-                                            {['0067F5', 'FF4500', '10B981', '8B5CF6', 'EC4899', 'F59E0B'].map((color) => {
-                                                const avatarUrl = `https://ui-avatars.com/api/?name=${user.name}&background=${color}&color=fff&bold=true`;
-                                                return (
+                                        <div className="flex flex-col items-center gap-4 bg-white p-4 rounded-2xl border border-brand-deep/5">
+                                            <div className="relative">
+                                                <img
+                                                    src={avatar}
+                                                    alt="Current Avatar"
+                                                    className="w-20 h-20 rounded-full border-4 border-white shadow-lg object-cover bg-gray-100"
+                                                />
+                                            </div>
+                                            <div className="flex gap-3 overflow-x-auto pb-2 px-2 no-scrollbar w-full justify-center">
+                                                {AVATAR_OPTIONS.map((opt, idx) => (
                                                     <button
-                                                        key={color}
-                                                        onClick={() => {
-                                                            // Logic to update avatar immediately or upon save (doing immediate visually, save later)
-                                                            // For MVP we just assume we pick one.
-                                                            // We actually need a local state for avatarURL to preview it.
-                                                        }}
-                                                        className="w-10 h-10 rounded-full shrink-0 border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                                                        key={idx}
+                                                        onClick={() => setAvatar(opt)}
+                                                        className={`w-10 h-10 rounded-full shrink-0 border-2 overflow-hidden transition-all hover:scale-110 ${avatar === opt ? 'border-brand-deep ring-2 ring-brand-deep/20 scale-110' : 'border-transparent opacity-70 hover:opacity-100'
+                                                            }`}
                                                     >
-                                                        <img src={avatarUrl} alt="avatar" className="w-full h-full rounded-full" />
+                                                        <img src={opt} className="w-full h-full object-cover" alt={`Avatar option ${idx + 1}`} />
                                                     </button>
-                                                );
-                                            })}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
 

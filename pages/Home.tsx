@@ -54,78 +54,86 @@ export const Home: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    // Load public blunts from local storage
-    const userBlunts = getPublicBlunts().map(b => ({
-      id: b.id,
-      category: 'Public', // Default category for user posts
-      text: b.content,
-      time: 'Just now'
-    }));
+    const loadFeed = async () => {
+      try {
+        const publicBlunts = await getPublicBlunts();
+        const userBlunts = publicBlunts.map(b => ({
+          id: b.id,
+          category: 'Public',
+          text: b.content,
+          time: 'Just now'
+        }));
 
-    const mockMoments = [
-      {
-        id: 1,
-        category: 'Workplace',
-        text: "I finally reported the safety violations in the warehouse. I was terrified of losing my job, but they can't ignore it now.",
-        time: '2h ago'
-      },
-      {
-        id: 2,
-        category: 'Personal',
-        text: "I told my brother that I was the one who crashed his car years ago. It's been eating me alive.",
-        time: '4h ago'
-      },
-      {
-        id: 3,
-        category: 'Safety',
-        text: "Alerted HR about the manager who keeps making inappropriate comments to interns. Someone had to say it.",
-        time: '6h ago'
-      },
-      {
-        id: 4,
-        category: 'Personal',
-        text: "Admitted to my partner that I'm not happy in this city anymore. We need to talk about moving.",
-        time: '8h ago'
-      },
-      {
-        id: 5,
-        category: 'Workplace',
-        text: "Submitted the anonymous feedback about the toxic crunch culture. Hopefully, next sprint is better.",
-        time: '12h ago'
-      },
-      {
-        id: 6,
-        category: 'Family',
-        text: "My parents still think I'm studying at university. I dropped out 3 months ago to start my own business.",
-        time: '1d ago'
-      },
-      {
-        id: 7,
-        category: 'Confession',
-        text: "I found a wallet with $500 in it. I returned the wallet, but I kept the cash. I needed it for rent.",
-        time: '1d ago'
-      },
-      {
-        id: 8,
-        category: 'Workplace',
-        text: "My boss takes credit for all my work. Today I casually mentioned 'my' project ideas to the CEO in the elevator.",
-        time: '2d ago'
-      },
-      {
-        id: 9,
-        category: 'Relationships',
-        text: "I'm planning to propose next week. She has no idea. I'm so nervous.",
-        time: '2d ago'
-      },
-      {
-        id: 10,
-        category: 'Safety',
-        text: "Reported the neighbor who leaves their aggressive dog off-leash. It chased a kid yesterday.",
-        time: '3d ago'
+        const mockMoments = [
+          {
+            id: 1,
+            category: 'Workplace',
+            text: "I finally reported the safety violations in the warehouse. I was terrified of losing my job, but they can't ignore it now.",
+            time: '2h ago'
+          },
+          {
+            id: 2,
+            category: 'Personal',
+            text: "I told my brother that I was the one who crashed his car years ago. It's been eating me alive.",
+            time: '4h ago'
+          },
+          {
+            id: 3,
+            category: 'Safety',
+            text: "Alerted HR about the manager who keeps making inappropriate comments to interns. Someone had to say it.",
+            time: '6h ago'
+          },
+          {
+            id: 4,
+            category: 'Personal',
+            text: "Admitted to my partner that I'm not happy in this city anymore. We need to talk about moving.",
+            time: '8h ago'
+          },
+          {
+            id: 5,
+            category: 'Workplace',
+            text: "Submitted the anonymous feedback about the toxic crunch culture. Hopefully, next sprint is better.",
+            time: '12h ago'
+          },
+          {
+            id: 6,
+            category: 'Family',
+            text: "My parents still think I'm studying at university. I dropped out 3 months ago to start my own business.",
+            time: '1d ago'
+          },
+          {
+            id: 7,
+            category: 'Confession',
+            text: "I found a wallet with $500 in it. I returned the wallet, but I kept the cash. I needed it for rent.",
+            time: '1d ago'
+          },
+          {
+            id: 8,
+            category: 'Workplace',
+            text: "My boss takes credit for all my work. Today I casually mentioned 'my' project ideas to the CEO in the elevator.",
+            time: '2d ago'
+          },
+          {
+            id: 9,
+            category: 'Relationships',
+            text: "I'm planning to propose next week. She has no idea. I'm so nervous.",
+            time: '2d ago'
+          },
+          {
+            id: 10,
+            category: 'Safety',
+            text: "Reported the neighbor who leaves their aggressive dog off-leash. It chased a kid yesterday.",
+            time: '3d ago'
+          }
+        ];
+
+        setFeedItems([...userBlunts, ...mockMoments]);
+      } catch (e) {
+        console.error("Failed to load feed", e);
       }
-    ];
+    };
 
-    setFeedItems([...userBlunts, ...mockMoments]);
+    loadFeed();
   }, []);
 
   return (

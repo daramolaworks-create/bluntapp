@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, GUEST_USER, getCurrentUser, loginWithMock, logout as authLogout } from '../services/authService';
+import { User, GUEST_USER, mapSupabaseUser, signInWithEmail, signInWithOAuth, signUpWithEmail, logout as authLogout, updateUser as authUpdateUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 
 interface AuthContextType {
     user: User;
     isLoading: boolean;
-    login: (provider: 'google' | 'apple' | 'email', name: string, email: string, country?: string) => Promise<void>;
+    login: (provider: 'google' | 'apple' | 'email', email: string, password?: string) => Promise<void>;
+    signup: (email: string, password: string, data: { name: string, username: string, country: string }) => Promise<void>;
     logout: () => void;
-    updateProfile: (updates: Partial<User>) => void;
+    updateProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,34 +18,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Initialize user from storage
-        setUser(getCurrentUser());
-        setIsLoading(false);
+        // Check active session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ? mapSupabaseUser(session.user) : GUEST_USER);
+            setIsLoading(false);
+        });
+
+        // Listen for changes
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ? mapSupabaseUser(session.user) : GUEST_USER);
+            setIsLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const login = async (provider: 'google' | 'apple' | 'email', name: string, email: string, country?: string) => {
+    const login = async (provider: 'google' | 'apple' | 'email', email: string, password?: string) => {
         setIsLoading(true);
         try {
-            const newUser = await loginWithMock(provider, name, email, country);
-            setUser(newUser);
+            if (provider === 'email') {
+                if (!password) throw new Error("Password required");
+                await signInWithEmail(email, password);
+            } else {
+                await signInWithOAuth(provider);
+            }
+        } catch (e) {
+            console.error(e);
+            throw e; // Propagate error to UI
         } finally {
             setIsLoading(false);
         }
     };
 
-    const logout = () => {
-        authLogout();
+    const signup = async (email: string, password: string, data: { name: string, username: string, country: string }) => {
+        setIsLoading(true);
+        try {
+            await signUpWithEmail(email, password, data);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const logout = async () => {
+        await authLogout();
         setUser(GUEST_USER);
     };
 
-    const updateProfile = (updates: Partial<User>) => {
-        const updatedUser = { ...user, ...updates };
-        setUser(updatedUser);
-        localStorage.setItem('blunt_user', JSON.stringify(updatedUser));
+    const updateProfile = async (updates: Partial<User>) => {
+        try {
+            const updated = await authUpdateUser(updates);
+            setUser(updated);
+        } catch (e) {
+            console.error("Failed to update profile", e);
+            throw e;
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout, updateProfile }}>
+        <AuthContext.Provider value={{ user, isLoading, login, signup, logout, updateProfile }}>
             {children}
         </AuthContext.Provider>
     );

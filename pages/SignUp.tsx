@@ -9,7 +9,7 @@ import { COUNTRIES } from '../constants/countries';
 
 export const SignUp: React.FC = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, signup } = useAuth(); // Destructure signup
     const location = useLocation();
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -18,22 +18,27 @@ export const SignUp: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSignUp = async (provider: 'email' | 'google' | 'apple') => {
-        if (provider === 'email' && (!username || !email || !password)) return;
-
         setIsLoading(true);
+        try {
+            if (provider === 'email') {
+                if (!username || !email || !password || !country) return;
+                await signup(email, password, { name: username, username, country });
+            } else {
+                // For OAuth, we just log in (signup is implicit/handled by provider)
+                await login(provider, '', '');
+            }
 
-        // For MVP, use the existing login function
-        // In production, this would call a separate signUp API
-        const effectiveName = provider === 'email' ? username : (provider === 'google' ? 'Google User' : 'Apple User');
-        const effectiveEmail = provider === 'email' ? email : (provider === 'google' ? 'user@gmail.com' : 'user@icloud.com');
+            // Check for returnTo redirect
+            const searchParams = new URLSearchParams(location.search);
+            const returnTo = searchParams.get('returnTo');
+            navigate(returnTo || '/');
 
-        await login(provider, effectiveName, effectiveEmail, country);
-        setIsLoading(false);
-
-        // Check for returnTo redirect
-        const searchParams = new URLSearchParams(location.search);
-        const returnTo = searchParams.get('returnTo');
-        navigate(returnTo || '/');
+        } catch (error) {
+            console.error("Sign up failed", error);
+            alert("Sign up failed. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -107,7 +112,7 @@ export const SignUp: React.FC = () => {
                     </div>
 
                     {/* Social Buttons */}
-                    <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="flex flex-col gap-3 mb-6">
                         <Button
                             onClick={() => handleSignUp('google')}
                             disabled={isLoading}
@@ -120,19 +125,7 @@ export const SignUp: React.FC = () => {
                                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                                 </svg>
-                                Google
-                            </span>
-                        </Button>
-                        <Button
-                            onClick={() => handleSignUp('apple')}
-                            disabled={isLoading}
-                            className="bg-white text-black border border-[#0a2e65]/10 hover:bg-[#0a2e65]/5 shadow-none"
-                        >
-                            <span className="flex items-center justify-center gap-2 font-bold text-xs">
-                                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#000000">
-                                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.45-1.62 4.12-.54 2.85 1.83 2.18 5.48 2.18 5.48s-1.58.74-1.92 2.6c-.38 2.07 1.45 3.03 1.45 3.03-1.05 2.65-2.38 5.66-4.63 7.57zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.54 4.33-3.74 4.25z" />
-                                </svg>
-                                Apple
+                                Continue with Google
                             </span>
                         </Button>
                     </div>

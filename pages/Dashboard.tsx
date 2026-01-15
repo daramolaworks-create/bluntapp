@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { BluntMessage } from '../types';
 import { Clock, CheckCircle, Eye, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getStoredBlunts } from '../services/storageService';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
@@ -12,16 +13,17 @@ export const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        try {
-            const STORAGE_KEY = 'blunt_messages_v1';
-            const data = localStorage.getItem(STORAGE_KEY);
-            const allBlunts: BluntMessage[] = data ? JSON.parse(data) : [];
-            setBlunts(allBlunts.sort((a, b) => b.createdAt - a.createdAt));
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
+        const fetchBlunts = async () => {
+            try {
+                const allBlunts = await getStoredBlunts();
+                setBlunts(allBlunts);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchBlunts();
     }, [user]);
 
     return (
@@ -30,9 +32,7 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between px-2">
                     <h1 className="text-2xl font-black text-brand-deep tracking-tight">Activity</h1>
                     <Link to="/create">
-                        <Link to="/create">
-                            <Button className="py-2 px-5 text-xs h-9 bg-[#0067f5] hover:bg-[#0067f5]/90 shadow-none flex items-center justify-center text-white">New +</Button>
-                        </Link>
+                        <Button className="py-2 px-5 text-xs h-9 bg-[#0067f5] hover:bg-[#0067f5]/90 shadow-none flex items-center justify-center text-white">New +</Button>
                     </Link>
                 </div>
 

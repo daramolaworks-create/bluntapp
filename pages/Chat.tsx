@@ -12,14 +12,16 @@ export const Chat: React.FC = () => {
     const [conversations, setConversations] = useState<BluntMessage[]>([]);
 
     useEffect(() => {
-        // Load real blunts
-        const allBlunts = getStoredBlunts();
-        // Filter to show only blunts created by this user? 
-        // For MVP storage is shared/local, so we just show all. 
-        // Ideally we filter by owner. But current storageService doesn't save ownerID?
-        // Let's just show all for now as per MVP local capabilities.
-        const sorted = allBlunts.sort((a, b) => b.createdAt - a.createdAt);
-        setConversations(sorted);
+        const fetchChats = async () => {
+            try {
+                const allBlunts = await getStoredBlunts();
+                const sorted = allBlunts.sort((a, b) => b.createdAt - a.createdAt);
+                setConversations(sorted);
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchChats();
     }, []);
 
     const formatTime = (timestamp: number) => {

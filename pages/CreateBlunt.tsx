@@ -158,12 +158,13 @@ export const CreateBlunt: React.FC = () => {
 
     // 3. Save
     try {
-      saveBlunt(newBlunt);
+      await saveBlunt(newBlunt);
       incrementUsage(user.id);
       setIsSubmitting(false);
       navigate(`/share/${newBlunt.id}`);
     } catch (e) {
-      setError("Failed to save. Storage might be full.");
+      console.error(e);
+      setError("Failed to save. Please try again.");
       setIsSubmitting(false);
     }
   };
