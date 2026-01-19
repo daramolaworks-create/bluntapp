@@ -72,6 +72,11 @@ export const updateUser = async (updates: Partial<User>): Promise<User> => {
     return mapSupabaseUser(data.user);
 };
 
+export const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+};
+
 export const signUpWithEmail = async (email: string, password: string, data: { name: string, username: string, country: string }) => {
     const { error, data: sessionData } = await supabase.auth.signUp({
         email,

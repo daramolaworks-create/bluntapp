@@ -11,6 +11,7 @@ import { ChatThread } from './pages/ChatThread';
 import { AuthLanding } from './pages/AuthLanding';
 import { SignUp } from './pages/SignUp';
 import { Login } from './pages/Login';
+import { SettingsView } from './pages/SettingsView';
 import { SplashScreen } from './components/SplashScreen';
 
 const App: React.FC = () => {
@@ -33,6 +34,7 @@ const App: React.FC = () => {
             <Route path="/auth" element={<AuthLanding />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/settings" element={<SettingsView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </HashRouter>

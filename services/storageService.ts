@@ -47,18 +47,38 @@ const mapToDB = (msg: BluntMessage, userId: string): any => ({
 
 export const saveBlunt = async (blunt: BluntMessage): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Must be logged in to save");
 
-  const dbPayload = mapToDB(blunt, user.id);
-  // Remove ID from payload to let DB generate it, or usage blunt.id if it's a valid UUID
-  // blunt.id from types is string, likely UUID from crypto.randomUUID()
+  // SUPPORT GUEST POSTING
+  // If no user is logged in, we try to use the guest ID from the blunt message or a generated one.
+  // Note: RLS policies on Supabase must allow INSERTs where user_id is null or match a guest rule.
+  const userId = user ? user.id : (blunt.isAnonymous ? 'guest-user' : null);
+
+  // If we really want to enforce a real user for guests (e.g. anonymous auth), 
+  // we would initiate that here, but for now we'll try to insert with what we have.
+
+  const dbPayload = mapToDB(blunt, userId || 'anon');
+
+  // If we are guest, we might need to remove user_id if the DB treats it as a foreign key that must exist.
+  // If the DB has `user_id uuid references auth.users(id)`, inserting a random string will fail FK constraint.
+  // We will attempt to insert NULL for user_id if it's a guest, assuming the column is nullable.
+  if (!user) {
+    delete dbPayload.user_id;
+  }
 
   const { error } = await supabase.from('blunts').insert({
     ...dbPayload,
     id: blunt.id
   });
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23503') { // Foreign key violation
+      throw new Error("Guest posting is currently disabled by server policy (Foreign Key). Please sign in.");
+    }
+    if (error.code === '42501') { // RLS violation
+      throw new Error("Guest posting is currently disabled by server policy (RLS). Please sign in.");
+    }
+    throw error;
+  }
 };
 
 export const getBlunt = async (id: string): Promise<BluntMessage | null> => {
