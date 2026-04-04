@@ -4,7 +4,8 @@ import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
 import { TextArea, Input } from '../components/Input';
 import { moderateContent } from '../services/geminiService';
-import { saveBlunt } from '../services/storageService';
+import { saveBlunt, uploadAttachment } from '../services/storageService';
+import { sendAnonymousBlunt } from '../services/deliveryService';
 import { checkLimit, incrementUsage } from '../services/rateLimitService';
 import { useAuth } from '../context/AuthContext';
 import { AuthModal } from '../components/AuthModal';
@@ -13,6 +14,7 @@ import { Loader2, AlertTriangle, ShieldCheck, Paperclip, X, Crown, Calendar, Spa
 import { getAuthoritiesForCountry, Authority } from '../constants/authorities';
 import { COUNTRIES } from '../constants/countries';
 import { Globe, Siren, User as UserIcon, MessageCircle } from 'lucide-react';
+import { getEndpointForAuthority } from '../constants/authorityEndpoints';
 
 export const CreateBlunt: React.FC = () => {
   const navigate = useNavigate();
@@ -34,7 +36,7 @@ export const CreateBlunt: React.FC = () => {
 
   // Content State
   const [message, setMessage] = useState('');
-  const [attachment, setAttachment] = useState<string | undefined>(undefined);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentName, setAttachmentName] = useState<string | undefined>(undefined);
   const [attachmentType, setAttachmentType] = useState<'image' | 'file' | undefined>(undefined);
 
@@ -42,7 +44,7 @@ export const CreateBlunt: React.FC = () => {
   const [recipientMode, setRecipientMode] = useState<'person' | 'authority'>('person');
   const [recipientName, setRecipientName] = useState('');
   const [recipientNumber, setRecipientNumber] = useState('');
-  const [deliveryMode, setDeliveryMode] = useState<'SMS' | 'WHATSAPP' | 'EMAIL'>('WHATSAPP');
+  const [deliveryMode, setDeliveryMode] = useState<'SMS' | 'WHATSAPP' | 'EMAIL'>('EMAIL');
   const [selectedAuthorityId, setSelectedAuthorityId] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(user.country || 'US'); // Default to US if undefined
 
@@ -61,23 +63,19 @@ export const CreateBlunt: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 500000) {
-      setError("File too large. MVP limit is 500KB.");
+    if (file.size > 5000000) {
+      setError("File too large. Limit is 5MB.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAttachment(reader.result as string);
-      setAttachmentName(file.name);
-      setAttachmentType(file.type.startsWith('image/') ? 'image' : 'file');
-      setError(null);
-    };
-    reader.readAsDataURL(file);
+    setAttachmentFile(file);
+    setAttachmentName(file.name);
+    setAttachmentType(file.type.startsWith('image/') ? 'image' : 'file');
+    setError(null);
   };
 
   const removeAttachment = () => {
-    setAttachment(undefined);
+    setAttachmentFile(null);
     setAttachmentName(undefined);
     setAttachmentType(undefined);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -134,7 +132,19 @@ export const CreateBlunt: React.FC = () => {
     if (recipientMode === 'authority') {
       const authority = getAuthoritiesForCountry(selectedCountry).find(a => a.id === selectedAuthorityId);
       finalRecipientName = authority?.name || 'Authority';
-      finalRecipientNumber = 'OFFICIAL_CHANNEL'; // In a real app, this would route to their API/Email
+      finalRecipientNumber = getEndpointForAuthority(selectedAuthorityId);
+    }
+
+    // 1.5 Upload Attachment if present
+    let attachmentUrl = undefined;
+    if (attachmentFile) {
+      const url = await uploadAttachment(attachmentFile);
+      if (!url) {
+        setError("Failed to upload proof. Try again.");
+        setIsSubmitting(false);
+        return;
+      }
+      attachmentUrl = url;
     }
 
     // 2. Create Object
@@ -150,18 +160,26 @@ export const CreateBlunt: React.FC = () => {
       recipientNumber: finalRecipientNumber,
       deliveryMode: recipientMode === 'authority' ? 'EMAIL' : deliveryMode, // Force EMAIL/Official channel for authorities
       scheduledFor: new Date(scheduledFor).getTime(),
-      attachment,
+      attachment: attachmentUrl,
       attachmentName,
       attachmentType,
       postToFeed // [NEW] Add to type definition if needed, or assume backend handles it. For now, adding to object.
     };
 
-    // 3. Save
+    // 3. Save & Deliver
     try {
       await saveBlunt(newBlunt);
       incrementUsage(user.id);
+
+      // 4. Auto-deliver via Edge Function (non-blocking for scheduled messages)
+      const isScheduledForLater = newBlunt.scheduledFor > Date.now() + 60000; // more than 1 min in the future
+      if (!isScheduledForLater) {
+        const result = await sendAnonymousBlunt(newBlunt);
+        console.log('[Delivery]', result.message);
+      }
+
       setIsSubmitting(false);
-      navigate(`/share/${newBlunt.id}`);
+      navigate(`/sent/${newBlunt.id}`);
     } catch (e) {
       console.error(e);
       setError("Failed to save. Please try again.");
@@ -227,26 +245,38 @@ export const CreateBlunt: React.FC = () => {
                   onChange={(e) => setRecipientName(e.target.value)}
                 />
 
-                <div className="flex p-1 bg-brand-cream/50 rounded-xl relative">
-                  {['SMS', 'WHATSAPP', 'EMAIL'].map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setDeliveryMode(mode as any)}
-                      className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-all ${deliveryMode === mode
-                        ? 'bg-white text-[#0067f5] shadow-sm scale-100'
-                        : 'text-brand-deep/40 hover:text-brand-deep/60 scale-95'
+                <div className="flex p-1 bg-brand-cream/50 rounded-xl relative gap-1">
+                  {['SMS', 'WHATSAPP', 'EMAIL'].map((mode) => {
+                    const isDisabled = mode === 'SMS' || mode === 'WHATSAPP';
+                    return (
+                      <button
+                        key={mode}
+                        onClick={() => !isDisabled && setDeliveryMode(mode as any)}
+                        className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-all relative ${
+                          isDisabled
+                            ? 'text-brand-deep/20 cursor-not-allowed'
+                            : deliveryMode === mode
+                              ? 'bg-white text-[#0067f5] shadow-sm scale-100'
+                              : 'text-brand-deep/40 hover:text-brand-deep/60 scale-95'
                         }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
+                        disabled={isDisabled}
+                      >
+                        {mode}
+                        {isDisabled && (
+                          <span className="absolute -top-1.5 -right-0.5 bg-brand-orange text-white text-[6px] font-black px-1.5 py-0.5 rounded-full leading-none tracking-wider">
+                            SOON
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <Input
-                  placeholder={deliveryMode === 'EMAIL' ? 'Email Address' : 'Phone Number'}
+                  placeholder="Email Address"
                   value={recipientNumber}
                   onChange={(e) => setRecipientNumber(e.target.value)}
-                  type={deliveryMode === 'EMAIL' ? 'email' : 'tel'}
+                  type="email"
                 />
               </>
             ) : (

@@ -12,10 +12,12 @@ interface MenuModalProps {
     isOpen: boolean;
     onClose: () => void;
     onOpenSupport: () => void;
-    initialView?: 'main' | 'settings';
+    isOpen: boolean;
+    onClose: () => void;
+    onOpenSupport: () => void;
 }
 
-export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSupport, initialView = 'main' }) => {
+export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSupport }) => {
     const { user, updateProfile, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -34,7 +36,6 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
 
     useEffect(() => {
         if (isOpen) {
-            setView(initialView);
             setName(user.name);
             setEmail(user.email);
             setMobile(user.mobile || '');
@@ -43,7 +44,7 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
             setAvatar(user.avatar || AVATAR_OPTIONS[0]);
             setCountry(user.country || 'US');
         }
-    }, [isOpen, user, initialView]);
+    }, [isOpen, user]);
 
     const handleSaveProfile = () => {
         updateProfile({ name, email, mobile, gender: gender as any, username, avatar, country });

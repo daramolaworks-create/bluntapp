@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AuthModal } from './AuthModal';
 import { SupportModal } from './SupportModal';
 import { MenuModal } from './MenuModal';
+import { getNotifications } from '../services/storageService';
 import { NotificationModal } from './NotificationModal';
 import { SearchModal } from './SearchModal';
 import { BottomNav } from './BottomNav';
@@ -18,27 +19,46 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, hideHeader = false, onSearch }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
-  const [menuInitialView, setMenuInitialView] = useState<'main' | 'settings'>('main');
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+
+  React.useEffect(() => {
+    if (user.isGuest) return;
+
+    // Initial check
+    const checkNodes = async () => {
+      const notifs = await getNotifications();
+      if (notifs.length > 0) setHasNewNotifications(true);
+    };
+    checkNodes();
+
+    // Poll every 60s
+    const interval = setInterval(checkNodes, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleOpenNotifications = () => {
+    setShowNotificationModal(true);
+    setHasNewNotifications(false); // Clear dot on open
+  };
 
   const handleOpenSettings = () => {
-    setMenuInitialView('settings');
-    setShowMenuModal(true);
+    navigate('/settings');
   };
 
   const handleOpenAccount = () => {
-    setMenuInitialView('main');
     setShowMenuModal(true);
   };
 
   // Calculate active tab
   let activeTab: 'home' | 'activity' | 'settings' | 'chat' = 'home';
-  if (showMenuModal) {
-    activeTab = menuInitialView === 'settings' ? 'settings' : 'chat';
+  if (location.pathname === '/settings') {
+    activeTab = 'settings';
   } else if (location.pathname === '/dashboard') {
     activeTab = 'activity';
   } else if (location.pathname === '/chat' || location.pathname.startsWith('/chat/')) {
@@ -84,11 +104,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, hideHeader = false, on
                 <Search size={20} />
               </button>
               <button
-                onClick={() => setShowNotificationModal(true)}
+                onClick={handleOpenNotifications}
                 className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white text-brand-deep shadow-soft hover:shadow-soft-lg transition-all"
               >
                 <Bell size={20} />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></div>
+                {hasNewNotifications && (
+                  <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></div>
+                )}
               </button>
             </div>
           </header>
@@ -116,7 +138,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, hideHeader = false, on
         isOpen={showMenuModal}
         onClose={() => setShowMenuModal(false)}
         onOpenSupport={() => setShowSupportModal(true)}
-        initialView={menuInitialView}
       />
       <NotificationModal
         isOpen={showNotificationModal}

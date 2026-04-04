@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { CreateBlunt } from './pages/CreateBlunt';
-import { ShareBlunt } from './pages/ShareBlunt';
+import { SentConfirmation } from './pages/SentConfirmation';
 import { ViewBlunt } from './pages/ViewBlunt';
 import { AuthProvider } from './context/AuthContext';
 import { Dashboard } from './pages/Dashboard';
@@ -26,7 +26,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<CreateBlunt />} />
-            <Route path="/share/:id" element={<ShareBlunt />} />
+            <Route path="/sent/:id" element={<SentConfirmation />} />
+            <Route path="/share/:id" element={<Navigate to="/" replace />} />
             <Route path="/view/:id" element={<ViewBlunt />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/chat" element={<Chat />} />

@@ -86,7 +86,8 @@ export const Login: React.FC = () => {
                         <Button
                             onClick={() => handleLogin('google')}
                             disabled={isLoading}
-                            className="bg-white text-black border border-[#0a2e65]/10 hover:bg-[#0a2e65]/5 shadow-none"
+                            variant="google"
+                            className="bg-brand-bright text-black shadow-none border-none"
                         >
                             <span className="flex items-center justify-center gap-2 font-bold text-xs">
                                 <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">

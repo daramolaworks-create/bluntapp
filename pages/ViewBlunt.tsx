@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
 import { TextArea } from '../components/Input';
 import { getBlunt, acknowledgeBlunt, denyBlunt, addReply } from '../services/storageService';
+import { supabase } from '../services/supabaseClient';
 import { BluntMessage } from '../types';
 import { Lock, Clock, Shield, CheckCircle, Send, FileText, UserPlus, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -18,23 +19,50 @@ export const ViewBlunt: React.FC = () => {
   const [replySent, setReplySent] = useState(false);
 
   useEffect(() => {
+    let channel: any;
     if (id) {
-      const found = getBlunt(id);
-      setBlunt(found);
-      setLoading(false);
+      getBlunt(id).then(found => {
+        setBlunt(found);
+        setLoading(false);
+      });
+
+      channel = supabase.channel(`public:replies:${id}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'replies', filter: `blunt_id=eq.${id}` },
+          (payload) => {
+             setBlunt(prev => {
+                if (!prev) return prev;
+                // prevent duplicates from the client making the initial change
+                if (prev.replies.some(r => r.id === payload.new.id)) return prev;
+                return { 
+                  ...prev, 
+                  replies: [...prev.replies, { 
+                    id: payload.new.id, 
+                    content: payload.new.content, 
+                    createdAt: payload.new.created_at || Date.now()
+                  }] 
+                };
+             });
+          }
+        )
+        .subscribe();
     }
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [id]);
 
-  const handleAcknowledge = () => {
+  const handleAcknowledge = async () => {
     if (blunt) {
-      acknowledgeBlunt(blunt.id);
+      await acknowledgeBlunt(blunt.id);
       setBlunt({ ...blunt, acknowledged: true });
     }
   };
 
-  const handleReply = () => {
+  const handleReply = async () => {
     if (blunt && reply.trim()) {
-      const updated = addReply(blunt.id, reply);
+      const updated = await addReply(blunt.id, reply);
       if (updated) {
         setBlunt(updated);
         setReply('');
@@ -134,9 +162,9 @@ export const ViewBlunt: React.FC = () => {
               I ACKNOWLEDGE THIS TRUTH
             </Button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (blunt) {
-                  denyBlunt(blunt.id);
+                  await denyBlunt(blunt.id);
                   setBlunt({ ...blunt, denied: true });
                 }
               }}

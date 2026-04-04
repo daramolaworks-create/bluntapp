@@ -1,28 +1,36 @@
-import React from 'react';
-import { X, Check, CheckCheck, Bell } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Check, CheckCheck, Bell, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getNotifications, NotificationItem } from '../services/storageService';
+import { useNavigate } from 'react-router-dom';
 
 interface NotificationModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-// Mock notifications for MVP
-const NOTIFICATIONS = [
-    { id: 1, type: 'sent', text: 'Blunt sent to Blunt Team', time: '2m ago' },
-    { id: 2, type: 'delivered', text: 'Blunt delivered to Mom', time: '1h ago' },
-    { id: 3, type: 'responded', text: 'New reply from Ex-Boss', time: 'Yesterday' },
-    { id: 4, type: 'sent', text: 'Blunt sent to @Sarah', time: '2d ago' },
-    { id: 5, type: 'delivered', text: 'Blunt read by @HR', time: '3d ago' },
-    { id: 6, type: 'responded', text: 'Reply from @Landlord', time: '4d ago' },
-    { id: 7, type: 'sent', text: 'Blunt sent to Support', time: '5d ago' },
-    { id: 8, type: 'delivered', text: 'Your confession was read', time: '1w ago' },
-    { id: 9, type: 'responded', text: 'Anonymous reply received', time: '1w ago' },
-    { id: 10, type: 'sent', text: 'Blunt sent to Future Self', time: '2w ago' },
-];
+
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && !user.isGuest) {
+            setLoading(true);
+            getNotifications()
+                .then(setNotifications)
+                .catch(console.error)
+                .finally(() => setLoading(false));
+        }
+    }, [isOpen, user]);
+
+    const handleClick = (notif: NotificationItem) => {
+        onClose();
+        navigate(`/chat/${notif.bluntId}`);
+    };
 
     if (!isOpen) return null;
 
@@ -40,21 +48,27 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto p-2">
-                    {NOTIFICATIONS.length > 0 ? (
+                    {notifications.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                            {NOTIFICATIONS.map((notif) => (
-                                <div key={notif.id} className="p-4 rounded-2xl hover:bg-brand-cream/30 transition-colors flex items-start gap-4 cursor-pointer">
+                            {notifications.map((notif) => (
+                                <div
+                                    key={notif.id}
+                                    onClick={() => handleClick(notif)}
+                                    className="p-4 rounded-2xl hover:bg-brand-cream/30 transition-colors flex items-start gap-4 cursor-pointer"
+                                >
                                     <div className={`p-2 rounded-full shrink-0 ${notif.type === 'sent' ? 'bg-blue-100 text-blue-600' :
-                                        notif.type === 'delivered' ? 'bg-green-100 text-green-600' :
-                                            'bg-purple-100 text-purple-600'
+                                            notif.type === 'delivered' ? 'bg-green-100 text-green-600' :
+                                                notif.type === 'denied' ? 'bg-red-100 text-red-600' :
+                                                    'bg-purple-100 text-purple-600'
                                         }`}>
                                         {notif.type === 'sent' && <Check size={16} />}
                                         {notif.type === 'delivered' && <CheckCheck size={16} />}
+                                        {notif.type === 'denied' && <ShieldAlert size={16} />}
                                         {notif.type === 'responded' && <Bell size={16} />}
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm font-bold text-brand-deep">{notif.text}</p>
-                                        <p className="text-[10px] text-brand-deep/40 font-bold uppercase mt-1">{notif.time}</p>
+                                        <p className="text-[10px] text-brand-deep/40 font-bold uppercase mt-1">{new Date(notif.timestamp).toLocaleString()}</p>
                                     </div>
                                     <div className="w-2 h-2 rounded-full bg-red-500 mt-2"></div>
                                 </div>

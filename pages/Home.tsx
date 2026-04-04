@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
 import { Shield, Lock, ArrowRight, Quote } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabaseClient';
 
 import { getPublicBlunts } from '../services/storageService';
 import { BluntMessage } from '../types';
@@ -134,6 +135,28 @@ export const Home: React.FC = () => {
     };
 
     loadFeed();
+
+    // Subscribe to incoming public blunts
+    const channel = supabase.channel('public:blunts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'blunts', filter: 'post_to_feed=eq.true' },
+        (payload) => {
+          const newBlunt = payload.new;
+          const newItem = {
+            id: newBlunt.id,
+            category: 'Live',
+            text: newBlunt.content,
+            time: 'Just now'
+          };
+          setFeedItems(prev => [newItem, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (

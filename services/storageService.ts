@@ -1,6 +1,26 @@
 import { supabase } from './supabaseClient';
 import { BluntMessage, BluntReply } from '../types';
 
+export const uploadAttachment = async (file: File): Promise<string | null> => {
+  const fileExt = file.name.split('.').pop();
+  const filePath = `${Math.random()}.${fileExt}`;
+  
+  const { error } = await supabase.storage
+    .from('blunt-attachments')
+    .upload(filePath, file);
+
+  if (error) {
+    console.error('Error uploading file: ', error);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('blunt-attachments')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
 // Map DB (snake_case) to Client (camelCase)
 const mapFromDB = (row: any): BluntMessage => ({
   id: row.id,
@@ -140,4 +160,79 @@ export const getPublicBlunts = async (): Promise<BluntMessage[]> => {
 
   if (error) throw error;
   return (data || []).map(mapFromDB);
+};
+
+export interface NotificationItem {
+  id: string;
+  type: 'sent' | 'delivered' | 'responded' | 'denied';
+  text: string;
+  time: string;
+  isRead: boolean;
+  bluntId: string;
+  timestamp: number;
+}
+
+export const getNotifications = async (): Promise<NotificationItem[]> => {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+
+  // Fetch all blunts for user
+  const blunts = await getStoredBlunts();
+  const notifications: NotificationItem[] = [];
+
+  blunts.forEach(blunt => {
+    // 1. Sent Notification (Base) - Optional, maybe too noisy? Let's keep it for now.
+    // notifications.push({
+    //   id: `sent-${blunt.id}`,
+    //   type: 'sent',
+    //   text: `Blunt sent to ${blunt.recipientName}`,
+    //   time: new Date(blunt.createdAt).toLocaleDateString(),
+    //   isRead: true,
+    //   bluntId: blunt.id,
+    //   timestamp: blunt.createdAt
+    // });
+
+    // 2. Acknowledged
+    if (blunt.acknowledged) {
+      notifications.push({
+        id: `ack-${blunt.id}`,
+        type: 'delivered',
+        text: `Your blunt to ${blunt.recipientName} was read & acknowledged`,
+        time: 'Recently', // We don't have ack timestamp in DB, so this is an estimate or we need schema change
+        isRead: false,
+        bluntId: blunt.id,
+        timestamp: blunt.createdAt + 10000 // Fake timestamp boosting
+      });
+    }
+
+    // 3. Denied
+    if (blunt.denied) {
+      notifications.push({
+        id: `deny-${blunt.id}`,
+        type: 'denied',
+        text: `Your blunt to ${blunt.recipientName} was denied`,
+        time: 'Recently',
+        isRead: false,
+        bluntId: blunt.id,
+        timestamp: blunt.createdAt + 10000
+      });
+    }
+
+    // 4. Replies
+    if (blunt.replies && blunt.replies.length > 0) {
+      blunt.replies.forEach(reply => {
+        notifications.push({
+          id: `reply-${reply.id}`,
+          type: 'responded',
+          text: `New reply from ${blunt.recipientName}`,
+          time: new Date(reply.createdAt).toLocaleDateString(),
+          isRead: false,
+          bluntId: blunt.id,
+          timestamp: reply.createdAt
+        });
+      });
+    }
+  });
+
+  return notifications.sort((a, b) => b.timestamp - a.timestamp);
 };
