@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
@@ -6,8 +6,9 @@ import { TextArea } from '../components/Input';
 import { getBlunt, acknowledgeBlunt, denyBlunt, addReply } from '../services/storageService';
 import { supabase } from '../services/supabaseClient';
 import { BluntMessage } from '../types';
-import { Lock, Clock, Shield, CheckCircle, Send, FileText, UserPlus, MessageCircle } from 'lucide-react';
+import { Lock, Shield, CheckCircle, Send, FileText, MessageCircle, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { AvatarDisplay } from '../components/AvatarDisplay';
 
 export const ViewBlunt: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +17,12 @@ export const ViewBlunt: React.FC = () => {
   const [blunt, setBlunt] = useState<BluntMessage | null>(null);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
-  const [replySent, setReplySent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     let channel: any;
@@ -26,24 +32,25 @@ export const ViewBlunt: React.FC = () => {
         setLoading(false);
       });
 
-      channel = supabase.channel(`public:replies:${id}`)
+      channel = supabase.channel(`replies:${id}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'replies', filter: `blunt_id=eq.${id}` },
           (payload) => {
-             setBlunt(prev => {
-                if (!prev) return prev;
-                // prevent duplicates from the client making the initial change
-                if (prev.replies.some(r => r.id === payload.new.id)) return prev;
-                return { 
-                  ...prev, 
-                  replies: [...prev.replies, { 
-                    id: payload.new.id, 
-                    content: payload.new.content, 
-                    createdAt: payload.new.created_at || Date.now()
-                  }] 
-                };
-             });
+            setBlunt(prev => {
+              if (!prev) return prev;
+              if (prev.replies.some(r => r.id === payload.new.id)) return prev;
+              return {
+                ...prev,
+                replies: [...prev.replies, {
+                  id: payload.new.id,
+                  content: payload.new.content,
+                  createdAt: payload.new.created_at || Date.now(),
+                  senderId: payload.new.sender_id,
+                  senderRole: payload.new.sender_role || 'recipient'
+                }]
+              };
+            });
           }
         )
         .subscribe();
@@ -53,6 +60,10 @@ export const ViewBlunt: React.FC = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [blunt?.replies.length]);
+
   const handleAcknowledge = async () => {
     if (blunt) {
       await acknowledgeBlunt(blunt.id);
@@ -61,13 +72,22 @@ export const ViewBlunt: React.FC = () => {
   };
 
   const handleReply = async () => {
-    if (blunt && reply.trim()) {
-      const updated = await addReply(blunt.id, reply);
-      if (updated) {
-        setBlunt(updated);
-        setReply('');
-        setReplySent(true);
-      }
+    if (!blunt || !reply.trim() || sending) return;
+    setSending(true);
+    try {
+      await addReply(blunt.id, reply, 'recipient');
+      setReply('');
+    } catch (e) {
+      console.error('Failed to send reply:', e);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleReply();
     }
   };
 
@@ -113,120 +133,141 @@ export const ViewBlunt: React.FC = () => {
     );
   }
 
-  // Permission Logic
-  const isAuthority = blunt.recipientNumber === 'OFFICIAL_CHANNEL';
-  const canReply = isAuthority || !user.isGuest;
-
   return (
-    <Layout>
-      <div className="flex flex-col gap-6">
+    <Layout hideHeader>
+      <div className="flex flex-col h-[100dvh] -m-4 sm:-m-8">
 
-        {/* SENDER IDENTITY */}
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-brand-deep to-brand-bright rounded-2xl shadow-lg flex items-center justify-center text-white">
-            {blunt.isAnonymous ? <Shield size={32} /> : <span className="text-2xl font-black">?</span>}
+        {/* Header */}
+        <div className="px-4 py-4 bg-white border-b border-brand-deep/5 flex items-center gap-3 shrink-0 shadow-sm">
+          <div className="w-10 h-10 bg-gradient-to-br from-brand-deep to-brand-bright rounded-2xl flex items-center justify-center text-white shadow-sm">
+            {blunt.isAnonymous ? <Shield size={20} /> : <span className="font-black">?</span>}
           </div>
-          <p className="font-bold text-brand-deep">
-            {blunt.isAnonymous ? 'Anonymous' : 'Someone'} sent you a blunt.
-          </p>
+          <div>
+            <h2 className="font-bold text-brand-deep text-sm">
+              {blunt.isAnonymous ? 'Anonymous Sender' : 'Someone'}
+            </h2>
+            <p className="text-[10px] text-brand-deep/40 font-bold uppercase tracking-wider">
+              Sent you a blunt
+            </p>
+          </div>
         </div>
 
-        {/* MESSAGE CARD */}
-        <div className="bg-white p-8 rounded-3xl shadow-soft relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <FileText size={100} />
-          </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-brand-surface">
 
-          <p className="text-2xl font-medium text-brand-deep leading-relaxed relative z-10">
-            "{blunt.content}"
-          </p>
-
-          {blunt.attachment && (
-            <div className="mt-8">
-              {blunt.attachmentType === 'image' ? (
-                <img src={blunt.attachment} className="w-full rounded-2xl border border-brand-cream shadow-sm" alt="Proof" />
-              ) : (
-                <div className="bg-brand-cream p-4 rounded-xl flex items-center gap-3">
-                  <FileText className="text-brand-deep" />
-                  <span className="font-bold text-brand-deep text-sm">Attached File</span>
+          {/* Original Blunt Message */}
+          <div className="flex justify-start">
+            <div className="max-w-[80%] bg-white text-brand-deep p-4 rounded-2xl rounded-tl-none shadow-sm border border-brand-deep/5">
+              <p className="text-sm leading-relaxed font-medium">"{blunt.content}"</p>
+              {blunt.attachment && (
+                <div className="mt-3">
+                  {blunt.attachmentType === 'image' ? (
+                    <img src={blunt.attachment} className="w-full rounded-xl" alt="Proof" />
+                  ) : (
+                    <div className="bg-brand-cream p-3 rounded-lg flex items-center gap-2">
+                      <FileText size={16} className="text-brand-deep" />
+                      <span className="text-xs font-bold text-brand-deep">Attached File</span>
+                    </div>
+                  )}
                 </div>
               )}
+              <span className="text-[10px] text-brand-deep/30 mt-2 block">
+                {new Date(blunt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </div>
+
+          {/* Acknowledge / Deny Actions */}
+          {!blunt.acknowledged && !blunt.denied && (
+            <div className="flex flex-col gap-2 px-4">
+              <Button onClick={handleAcknowledge} fullWidth className="py-3 text-sm shadow-lg">
+                I ACKNOWLEDGE THIS TRUTH
+              </Button>
+              <button
+                onClick={async () => {
+                  if (blunt) {
+                    await denyBlunt(blunt.id);
+                    setBlunt({ ...blunt, denied: true });
+                  }
+                }}
+                className="w-full py-3 rounded-xl text-red-500 font-bold uppercase tracking-widest text-[10px] hover:bg-red-50 transition-colors"
+              >
+                I do not acknowledge this truth
+              </button>
             </div>
           )}
+
+          {(blunt.acknowledged || blunt.denied) && (
+            <div className="text-center py-2">
+              <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${blunt.denied ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                {blunt.denied ? '✕ Denied' : '✓ Acknowledged'}
+              </span>
+            </div>
+          )}
+
+          {/* Conversation Replies */}
+          {blunt.replies.map(r => (
+            <div key={r.id} className={`flex ${r.senderRole === 'recipient' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm ${
+                r.senderRole === 'recipient'
+                  ? 'bg-brand-bright text-white rounded-tr-none'
+                  : 'bg-white text-brand-deep rounded-tl-none border border-brand-deep/5'
+              }`}>
+                <p className="text-sm leading-relaxed">{r.content}</p>
+                <span className={`text-[10px] mt-2 block ${r.senderRole === 'recipient' ? 'text-white/40 text-right' : 'text-brand-deep/30'}`}>
+                  {new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* ACTIONS */}
-        {!blunt.acknowledged && !blunt.denied ? (
-          <div className="flex flex-col gap-3">
-            <Button onClick={handleAcknowledge} fullWidth className="py-4 text-lg shadow-xl">
-              I ACKNOWLEDGE THIS TRUTH
-            </Button>
-            <button
-              onClick={async () => {
-                if (blunt) {
-                  await denyBlunt(blunt.id);
-                  setBlunt({ ...blunt, denied: true });
-                }
-              }}
-              className="w-full py-4 rounded-xl text-red-500 font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors"
-            >
-              I do not acknowledge this truth
-            </button>
-          </div>
-        ) : (
-          <div className={`text-center py-4 rounded-2xl border ${blunt.denied ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-            <div className={`flex items-center justify-center gap-2 ${blunt.denied ? 'text-red-500' : 'text-green-600'} font-bold uppercase text-xs tracking-widest`}>
-              {blunt.denied ? (
-                <>
-                  <Shield size={14} /> Denied
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={14} /> Acknowledged
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* REPLY SECTION */}
+        {/* Input Area */}
         {blunt.allowReply && (
-          <div className="space-y-4 pt-4 border-t border-brand-deep/5">
-            {blunt.replies.map(r => (
-              <div key={r.id} className="bg-brand-bright text-white p-4 rounded-2xl rounded-tr-none ml-8 shadow-md">
-                <p className="text-sm">{r.content}</p>
-              </div>
-            ))}
-
-            {!replySent ? (
-              canReply ? (
-                <div className="flex gap-2 items-end">
-                  <TextArea
-                    placeholder={isAuthority ? "Official Response..." : "Your response..."}
-                    rows={1}
-                    className="bg-white"
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                  />
-                  <button
-                    onClick={handleReply}
-                    className="h-12 w-12 bg-brand-deep text-white rounded-2xl flex items-center justify-center hover:bg-brand-bright transition-colors shadow-lg"
+          <div className="p-4 bg-white border-t border-brand-deep/5 shrink-0">
+            {user.isGuest ? (
+              /* Auth Gate — must sign up/login to reply */
+              <div className="flex flex-col gap-3 text-center py-2">
+                <p className="text-xs text-brand-deep/50 font-medium">Sign in to respond to this blunt</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => navigate(`/signup?returnTo=/view/${blunt.id}`)}
+                    fullWidth
+                    className="flex items-center justify-center gap-2 py-3"
                   >
-                    <Send size={20} />
+                    <MessageCircle size={16} /> Sign Up to Reply
+                  </Button>
+                  <button
+                    onClick={() => navigate(`/login?returnTo=/view/${blunt.id}`)}
+                    className="flex-1 py-3 border border-brand-deep/10 rounded-xl text-brand-deep font-bold text-xs hover:bg-brand-cream/50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <LogIn size={16} /> Log In
                   </button>
                 </div>
-              ) : (
-                <Button
-                  onClick={() => navigate(`/signup?returnTo=/view/${blunt.id}`)}
-                  fullWidth
-                  className="bg-brand-deep text-white shadow-xl flex items-center justify-center gap-2"
-                >
-                  <MessageCircle size={20} />
-                  Reply to Blunt
-                </Button>
-              )
+              </div>
             ) : (
-              <p className="text-center text-xs text-brand-deep/40 font-medium">Response sent.</p>
+              /* Chat Input */
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <TextArea
+                    placeholder="Your response..."
+                    rows={1}
+                    className="bg-brand-surface border-0"
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                </div>
+                <button
+                  onClick={handleReply}
+                  disabled={!reply.trim() || sending}
+                  className="h-12 w-12 bg-brand-deep text-white rounded-2xl flex items-center justify-center hover:bg-brand-bright transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Send size={20} />
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -41,7 +41,9 @@ const mapFromDB = (row: any): BluntMessage => ({
   replies: (row.replies || []).map((r: any) => ({
     id: r.id,
     content: r.content,
-    createdAt: Number(r.created_at)
+    createdAt: Number(r.created_at),
+    senderId: r.sender_id,
+    senderRole: r.sender_role || 'recipient'
   }))
 });
 
@@ -122,11 +124,14 @@ export const updateBlunt = async (id: string, updates: Partial<BluntMessage>): P
   if (error) throw error;
 };
 
-export const addReply = async (bluntId: string, replyContent: string): Promise<BluntMessage | null> => {
+export const addReply = async (bluntId: string, replyContent: string, senderRole: 'sender' | 'recipient' = 'recipient'): Promise<BluntMessage | null> => {
+  const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from('replies').insert({
     blunt_id: bluntId,
     content: replyContent,
-    created_at: Date.now()
+    created_at: Date.now(),
+    sender_id: user?.id || null,
+    sender_role: senderRole
   });
   if (error) throw error;
   return getBlunt(bluntId);
@@ -218,19 +223,21 @@ export const getNotifications = async (): Promise<NotificationItem[]> => {
       });
     }
 
-    // 4. Replies
+    // 4. Replies (only from the OTHER person — not your own messages)
     if (blunt.replies && blunt.replies.length > 0) {
-      blunt.replies.forEach(reply => {
-        notifications.push({
-          id: `reply-${reply.id}`,
-          type: 'responded',
-          text: `New reply from ${blunt.recipientName}`,
-          time: new Date(reply.createdAt).toLocaleDateString(),
-          isRead: false,
-          bluntId: blunt.id,
-          timestamp: reply.createdAt
+      blunt.replies
+        .filter(reply => reply.senderRole === 'recipient') // Only show recipient replies to the sender
+        .forEach(reply => {
+          notifications.push({
+            id: `reply-${reply.id}`,
+            type: 'responded',
+            text: `${blunt.recipientName} replied to your blunt`,
+            time: new Date(reply.createdAt).toLocaleDateString(),
+            isRead: false,
+            bluntId: blunt.id,
+            timestamp: reply.createdAt
+          });
         });
-      });
     }
   });
 

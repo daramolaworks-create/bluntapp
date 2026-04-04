@@ -22,6 +22,8 @@ export interface BluntReply {
   id: string;
   content: string;
   createdAt: number;
+  senderId?: string;
+  senderRole: 'sender' | 'recipient';
 }
 
 export enum BluntErrorType {

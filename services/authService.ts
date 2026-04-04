@@ -28,7 +28,7 @@ export const mapSupabaseUser = (u: any): User => {
         name: metadata.name || 'User',
         isGuest: false,
         username: metadata.username,
-        avatar: metadata.avatar || metadata.avatar_url || `https://ui-avatars.com/api/?name=${metadata.name || 'User'}&background=0067F5&color=fff&bold=true`,
+        avatar: metadata.avatar || 'ghost',
         country: metadata.country,
         gender: metadata.gender,
         mobile: metadata.mobile

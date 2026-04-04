@@ -26,6 +26,8 @@ create table public.blunts (
 create table public.replies (
   id uuid primary key default gen_random_uuid(),
   blunt_id uuid references public.blunts(id) on delete cascade,
+  sender_id uuid references auth.users(id) on delete set null,
+  sender_role text not null default 'recipient',
   content text not null,
   created_at bigint
 );

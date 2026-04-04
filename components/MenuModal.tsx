@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { COUNTRIES } from '../constants/countries';
 import { AVATAR_OPTIONS } from '../constants/avatars';
+import { AvatarDisplay } from './AvatarDisplay';
 
 interface MenuModalProps {
     isOpen: boolean;
@@ -41,7 +42,7 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
             setMobile(user.mobile || '');
             setGender(user.gender || 'prefer_not_to_say');
             setUsername(user.username || '');
-            setAvatar(user.avatar || AVATAR_OPTIONS[0]);
+            setAvatar(user.avatar || 'ghost');
             setCountry(user.country || 'US');
         }
     }, [isOpen, user]);
@@ -90,13 +91,7 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
                             }}
                             className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm cursor-pointer hover:bg-white/80 transition-colors group"
                         >
-                            <div className="w-12 h-12 rounded-full bg-brand-deep text-white flex items-center justify-center font-black text-xl overflow-hidden">
-                                {user.avatar ? (
-                                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    user.name.charAt(0)
-                                )}
-                            </div>
+                            <AvatarDisplay avatarId={user.avatar} size={48} />
                             <div className="flex-1">
                                 <h3 className="font-bold text-brand-deep group-hover:text-brand-bright transition-colors">{user.name}</h3>
                                 <p className="text-xs text-brand-deep/50">{user.email || 'Guest User'}</p>

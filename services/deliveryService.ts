@@ -45,3 +45,30 @@ export const sendAnonymousBlunt = async (blunt: BluntMessage): Promise<{ success
         return { success: false, message: 'System error during transmission.' };
     }
 };
+
+// Send email notification when someone replies in a chat thread
+export const sendReplyNotification = async (bluntId: string, recipientEmail: string): Promise<void> => {
+    try {
+        console.log(`[DeliveryService] Sending reply notification to ${recipientEmail}...`);
+
+        const response = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                blunt: {
+                    id: bluntId,
+                    recipientNumber: recipientEmail,
+                    deliveryMode: 'REPLY_NOTIFICATION'
+                }
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            console.warn('[DeliveryService] Reply notification failed:', data);
+        }
+    } catch (e) {
+        // Non-blocking — don't break the chat flow if notification fails
+        console.warn('[DeliveryService] Reply notification error:', e);
+    }
+};

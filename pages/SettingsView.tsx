@@ -3,13 +3,15 @@ import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { useAuth } from '../context/AuthContext';
-import { updateUser, updatePassword } from '../services/authService';
+import { updatePassword } from '../services/authService';
 import { User, Lock, Save, AlertTriangle, CheckCircle, Smartphone, Globe } from 'lucide-react';
 import { COUNTRIES } from '../constants/countries';
+import { AVATAR_OPTIONS, getAvatarById } from '../constants/avatars';
+import { AvatarDisplay } from '../components/AvatarDisplay';
 import { useNavigate } from 'react-router-dom';
 
 export const SettingsView: React.FC = () => {
-    const { user, refreshUser, logout } = useAuth();
+    const { user, updateProfile, logout } = useAuth();
     const navigate = useNavigate();
 
     const [name, setName] = useState(user.name);
@@ -17,6 +19,7 @@ export const SettingsView: React.FC = () => {
     const [email, setEmail] = useState(user.email);
     const [country, setCountry] = useState(user.country || 'US');
     const [mobile, setMobile] = useState(user.mobile || '');
+    const [selectedAvatar, setSelectedAvatar] = useState(user.avatar || 'ghost');
 
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -35,8 +38,7 @@ export const SettingsView: React.FC = () => {
         setIsLoading(true);
         setMessage(null);
         try {
-            await updateUser({ name, username, country, mobile });
-            await refreshUser();
+            await updateProfile({ name, username, country, mobile, avatar: selectedAvatar });
             setMessage({ type: 'success', text: 'Profile updated successfully.' });
         } catch (e: any) {
             console.error(e);
@@ -89,6 +91,33 @@ export const SettingsView: React.FC = () => {
                         <User className="text-brand-bright" size={20} />
                         <h2 className="font-bold text-brand-deep text-lg">Profile</h2>
                     </div>
+
+                    {/* Avatar Picker */}
+                    <div>
+                        <label className="text-[10px] font-bold text-brand-deep/40 uppercase mb-3 block pl-1">Choose Avatar</label>
+                        <div className="flex items-center gap-4 mb-4">
+                            <AvatarDisplay avatarId={selectedAvatar} size={64} />
+                            <div>
+                                <p className="font-bold text-brand-deep">{getAvatarById(selectedAvatar).label}</p>
+                                <p className="text-[10px] text-brand-deep/50">Tap below to change</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-6 gap-2">
+                            {AVATAR_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => setSelectedAvatar(opt.id)}
+                                    className={`w-full aspect-square rounded-xl flex items-center justify-center text-xl transition-all ${selectedAvatar === opt.id ? 'ring-2 ring-brand-bright ring-offset-2 scale-110' : 'hover:scale-105 opacity-70 hover:opacity-100'}`}
+                                    style={{ background: opt.bg }}
+                                    title={opt.label}
+                                >
+                                    {opt.emoji}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-brand-deep/5 my-2" />
 
                     <div className="grid gap-4">
                         <div>

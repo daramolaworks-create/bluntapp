@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, ChevronRight, User as UserIcon, Shield } from 'lucide-react';
+import { AvatarDisplay } from '../components/AvatarDisplay';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBlunts } from '../services/storageService';
 import { BluntMessage } from '../types';
@@ -78,9 +79,7 @@ export const Chat: React.FC = () => {
                             onClick={() => navigate(`/chat/${Convo.id}`)}
                             className="bg-white p-4 rounded-2xl shadow-sm border border-transparent hover:border-brand-deep/5 transition-all cursor-pointer flex items-center gap-4"
                         >
-                            <div className="w-12 h-12 rounded-full bg-brand-surface flex items-center justify-center text-brand-deep font-bold shrink-0">
-                                {Convo.recipientName.charAt(0)}
-                            </div>
+                            <AvatarDisplay avatarId={Convo.isAnonymous ? 'ghost' : undefined} size={48} />
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start mb-0.5">

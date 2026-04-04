@@ -117,7 +117,7 @@ export const SignUp: React.FC = () => {
                             onClick={() => handleSignUp('google')}
                             disabled={isLoading}
                             variant="google"
-                            className="bg-brand-bright text-black shadow-none border-none"
+                            className="bg-brand-bright text-white shadow-none border-none"
                         >
                             <span className="flex items-center justify-center gap-2 font-bold text-xs">
                                 <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">

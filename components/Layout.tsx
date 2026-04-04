@@ -8,6 +8,7 @@ import { getNotifications } from '../services/storageService';
 import { NotificationModal } from './NotificationModal';
 import { SearchModal } from './SearchModal';
 import { BottomNav } from './BottomNav';
+import { AvatarDisplay } from './AvatarDisplay';
 import { Star, User as UserIcon, Activity, Menu, Bell, Search } from 'lucide-react';
 
 interface LayoutProps {
@@ -82,12 +83,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, hideHeader = false, on
                 onClick={handleOpenAccount}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
               >
-                <div className="w-10 h-10 rounded-full bg-brand-deep text-white flex items-center justify-center font-bold text-sm shadow-soft group-hover:shadow-soft-lg transition-all">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    user.name.charAt(0).toUpperCase()
-                  )}
+                <div className="w-10 h-10 rounded-full overflow-hidden">
+                  <AvatarDisplay avatarId={user.avatar} size={40} />
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-bold text-brand-deep leading-none">{user.name.split(' ')[0]}</p>

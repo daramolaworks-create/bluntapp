@@ -130,6 +130,39 @@ serve(async (req) => {
             });
         }
 
+        // --- REPLY NOTIFICATION ---
+        // Sent when the sender replies back in a chat thread
+        if (blunt.deliveryMode === 'REPLY_NOTIFICATION') {
+            const recipientEmail = blunt.recipientNumber; // the recipient's email
+            const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    sender: { email: SENDER_EMAIL, name: SENDER_NAME },
+                    to: [{ email: recipientEmail }],
+                    subject: 'New reply on your Blunt conversation',
+                    htmlContent: `
+                        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px; text-align: center;">
+                            <div style="width: 60px; height: 60px; background: #0a1128; border-radius: 16px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 28px;">💬</span>
+                            </div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0a1128; margin-bottom: 8px;">New reply in your conversation</h1>
+                            <p style="font-size: 14px; color: #666; margin-bottom: 32px;">Someone replied to your blunt conversation. Tap below to continue the chat.</p>
+                            <a href="${viewUrl}" style="display: inline-block; padding: 14px 32px; background: #0067f5; color: #fff; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 14px;">Continue Chat</a>
+                            <p style="font-size: 11px; color: #aaa; margin-top: 32px;">Sent securely via Blunt</p>
+                        </div>
+                    `
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(`Brevo Reply Notification Error: ${data.message || JSON.stringify(data)}`);
+
+            return new Response(JSON.stringify({ success: true, messageId: data.messageId }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+
         throw new Error("Invalid Delivery Mode");
 
     } catch (error) {
