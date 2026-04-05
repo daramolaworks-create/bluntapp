@@ -47,7 +47,7 @@ serve(async (req) => {
                         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                     },
                     body: JSON.stringify({
-                        model: 'deepseek-reasoner',
+                        model: 'deepseek-chat',
                         messages: [
                             {
                                 role: 'system',
@@ -63,7 +63,8 @@ Respond with strictly one word: "SAFE" or "VIOLATION".`
                             },
                             { role: 'user', content: blunt.content }
                         ],
-                        max_tokens: 10,
+                        max_tokens: 5,
+                        temperature: 0,
                     })
                 });
 
