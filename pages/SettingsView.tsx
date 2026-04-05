@@ -178,7 +178,7 @@ export const SettingsView: React.FC = () => {
                         </div>
                     </div>
 
-                    <Button onClick={handlePasswordUpdate} disabled={isLoading} variant="secondary" className="mt-4 bg-brand-deep text-white hover:bg-brand-deep/90">
+                    <Button onClick={handlePasswordUpdate} disabled={isLoading} fullWidth className="mt-4 bg-brand-deep text-white hover:bg-brand-deep/90">
                         {isLoading ? 'Updating...' : 'Change Password'}
                     </Button>
                 </section>

@@ -89,14 +89,16 @@ export const Chat: React.FC = () => {
                                     </span>
                                 </div>
                                 <p className="text-xs text-brand-deep/60 truncate pr-4">
-                                    {Convo.replies.length > 0 ? `Reply: ${Convo.replies[Convo.replies.length - 1].content}` : `You: ${Convo.content}`}
+                                    {Convo.replies.length > 0
+                                        ? `${Convo.replies[Convo.replies.length - 1].senderRole === 'sender' ? 'You' : Convo.recipientName}: ${Convo.replies[Convo.replies.length - 1].content}`
+                                        : `You: ${Convo.content}`}
                                 </p>
                             </div>
 
                             <div className="flex flex-col items-end gap-1">
-                                {Convo.replies.length > 0 && (
+                                {Convo.replies.filter(r => r.senderRole === 'recipient').length > 0 && (
                                     <span className="w-5 h-5 bg-brand-orange text-white text-[10px] font-bold flex items-center justify-center rounded-full">
-                                        {Convo.replies.length}
+                                        {Convo.replies.filter(r => r.senderRole === 'recipient').length}
                                     </span>
                                 )}
                                 <StatusIcon status={Convo.acknowledged ? 'read' : 'sent'} />

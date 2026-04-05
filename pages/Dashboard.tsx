@@ -50,7 +50,7 @@ export const Dashboard: React.FC = () => {
                         {blunts.map((blunt) => {
                             const isScheduled = blunt.scheduledFor > Date.now();
                             return (
-                                <Link key={blunt.id} to={`/share/${blunt.id}`}>
+                                <Link key={blunt.id} to={`/chat/${blunt.id}`}>
                                     <div className="bg-white p-5 rounded-2xl shadow-soft hover:shadow-soft-lg transition-all flex items-center justify-between group">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">

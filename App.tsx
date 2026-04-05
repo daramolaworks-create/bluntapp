@@ -27,7 +27,6 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<CreateBlunt />} />
             <Route path="/sent/:id" element={<SentConfirmation />} />
-            <Route path="/share/:id" element={<Navigate to="/" replace />} />
             <Route path="/view/:id" element={<ViewBlunt />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/chat" element={<Chat />} />

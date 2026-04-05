@@ -36,6 +36,7 @@ export const Home: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [weeklyCount, setWeeklyCount] = useState(0);
   const [showStickyButton, setShowStickyButton] = useState(false);
   const heroRef = React.useRef<HTMLDivElement>(null);
 
@@ -99,6 +100,14 @@ export const Home: React.FC = () => {
     const loadFeed = async () => {
       try {
         const publicBlunts = await getPublicBlunts();
+
+        // Get weekly blunt count
+        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const { count } = await supabase
+          .from('blunts')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', oneWeekAgo);
+        setWeeklyCount(count || 0);
 
         // Get reaction counts
         const bluntIds = publicBlunts.map(b => b.id);
@@ -217,8 +226,8 @@ export const Home: React.FC = () => {
         <section className="bg-white rounded-3xl p-6 shadow-soft flex flex-col gap-4 mx-1">
           <div className="flex items-start justify-between">
             <div>
-              <span className="block text-4xl font-black text-brand-deep">184</span>
-              <span className="text-sm font-bold text-brand-deep/60">people spoke up this week</span>
+              <span className="block text-4xl font-black text-brand-deep">{weeklyCount}</span>
+              <span className="text-sm font-bold text-brand-deep/60">blunts sent this week</span>
             </div>
             <div className="flex gap-2">
               <div className="w-8 h-8 rounded-full bg-brand-surface flex items-center justify-center text-brand-deep/40" title="encrypted">
@@ -230,7 +239,7 @@ export const Home: React.FC = () => {
             </div>
           </div>
           <div className="h-1 w-full bg-brand-surface rounded-full overflow-hidden">
-            <div className="h-full w-[70%] bg-brand-bright rounded-full animate-pulse"></div>
+            <div className="h-full bg-brand-bright rounded-full transition-all duration-1000" style={{ width: `${Math.min((weeklyCount / 100) * 100, 100)}%` }}></div>
           </div>
         </section>
 
