@@ -31,17 +31,27 @@ serve(async (req) => {
 
         // --- CONTENT MODERATION ---
         if (blunt.deliveryMode === 'MODERATE') {
-            const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-            if (!GEMINI_API_KEY) {
+            const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
+            if (!DEEPSEEK_API_KEY) {
+                console.warn('[send-blunt] No DEEPSEEK_API_KEY set. Skipping moderation.');
                 return new Response(JSON.stringify({ success: true, safe: true }), {
                     headers: { ...corsHeaders, "Content-Type": "application/json" }
                 });
             }
 
             try {
-                const prompt = `You are a content moderation system for an app called 'Blunt'.
-
-Your task is to analyze the following text and determine if it violates our safety policy.
+                const dsRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-reasoner',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `You are a content moderation system for an app called 'Blunt'. Analyze the user's text and determine if it violates our safety policy.
 
 Policy Violations include:
 1. Threats of violence.
@@ -49,23 +59,16 @@ Policy Violations include:
 3. Illegal doxxing (sharing private addresses, phone numbers, etc).
 4. Explicit self-harm encouragement.
 
-Text to analyze: "${blunt.content}"
+Respond with strictly one word: "SAFE" or "VIOLATION".`
+                            },
+                            { role: 'user', content: blunt.content }
+                        ],
+                        max_tokens: 10,
+                    })
+                });
 
-Respond with strictly one word: "SAFE" or "VIOLATION".`;
-
-                const geminiRes = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }] }]
-                        })
-                    }
-                );
-
-                const geminiData = await geminiRes.json();
-                const resultText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase() || 'SAFE';
+                const dsData = await dsRes.json();
+                const resultText = dsData?.choices?.[0]?.message?.content?.trim().toUpperCase() || 'SAFE';
 
                 if (resultText.includes('VIOLATION')) {
                     return new Response(JSON.stringify({
@@ -81,7 +84,7 @@ Respond with strictly one word: "SAFE" or "VIOLATION".`;
                     headers: { ...corsHeaders, "Content-Type": "application/json" }
                 });
             } catch (moderationError) {
-                console.warn('[send-blunt] Moderation API failed, defaulting to safe:', moderationError);
+                console.warn('[send-blunt] DeepSeek moderation failed, defaulting to safe:', moderationError);
                 return new Response(JSON.stringify({ success: true, safe: true }), {
                     headers: { ...corsHeaders, "Content-Type": "application/json" }
                 });
