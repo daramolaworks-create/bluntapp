@@ -1,5 +1,5 @@
 // Blunt App - Edge Function: send-blunt
-// Unified delivery via Brevo (Email, SMS, WhatsApp)
+// Unified delivery via Brevo (Email, SMS, WhatsApp) + Moderation
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -15,21 +15,80 @@ serve(async (req) => {
         if (!blunt || !blunt.recipientNumber) throw new Error("Missing recipient details");
 
         const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY');
-        if (!BREVO_API_KEY) throw new Error("Missing Brevo API key.");
+        if (!BREVO_API_KEY && blunt.deliveryMode !== 'MODERATE') throw new Error("Missing Brevo API key.");
 
         const APP_URL = Deno.env.get('APP_URL') || 'http://localhost:3000';
         const viewUrl = `${APP_URL}/#/view/${blunt.id}`;
 
         const headers = {
             'Content-Type': 'application/json',
-            'api-key': BREVO_API_KEY,
+            'api-key': BREVO_API_KEY || '',
             'accept': 'application/json',
         };
 
-        // --- EMAIL ---
         const SENDER_EMAIL = Deno.env.get('BREVO_SENDER_EMAIL') || 'noreply@bluntapp.com';
         const SENDER_NAME = Deno.env.get('BREVO_SENDER_NAME') || 'Blunt';
 
+        // --- CONTENT MODERATION ---
+        if (blunt.deliveryMode === 'MODERATE') {
+            const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+            if (!GEMINI_API_KEY) {
+                return new Response(JSON.stringify({ success: true, safe: true }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            }
+
+            try {
+                const prompt = `You are a content moderation system for an app called 'Blunt'.
+
+Your task is to analyze the following text and determine if it violates our safety policy.
+
+Policy Violations include:
+1. Threats of violence.
+2. Obvious hate speech.
+3. Illegal doxxing (sharing private addresses, phone numbers, etc).
+4. Explicit self-harm encouragement.
+
+Text to analyze: "${blunt.content}"
+
+Respond with strictly one word: "SAFE" or "VIOLATION".`;
+
+                const geminiRes = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    }
+                );
+
+                const geminiData = await geminiRes.json();
+                const resultText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase() || 'SAFE';
+
+                if (resultText.includes('VIOLATION')) {
+                    return new Response(JSON.stringify({
+                        success: true,
+                        safe: false,
+                        reason: "Your message violates Blunt policy. It contains hate speech, violence, or sensitive private info. Rephrase."
+                    }), {
+                        headers: { ...corsHeaders, "Content-Type": "application/json" }
+                    });
+                }
+
+                return new Response(JSON.stringify({ success: true, safe: true }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            } catch (moderationError) {
+                console.warn('[send-blunt] Moderation API failed, defaulting to safe:', moderationError);
+                return new Response(JSON.stringify({ success: true, safe: true }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            }
+        }
+
+        // --- EMAIL ---
         if (blunt.deliveryMode === 'EMAIL') {
             const res = await fetch('https://api.brevo.com/v3/smtp/email', {
                 method: 'POST',
@@ -85,12 +144,9 @@ serve(async (req) => {
 
         // --- WHATSAPP ---
         if (blunt.deliveryMode === 'WHATSAPP') {
-            // WhatsApp via Brevo requires a pre-approved template for the first message.
-            // You must create a template in Brevo dashboard first, then use its ID here.
             const WHATSAPP_TEMPLATE_ID = Deno.env.get('BREVO_WHATSAPP_TEMPLATE_ID');
 
             if (!WHATSAPP_TEMPLATE_ID) {
-                // Fallback: send as SMS instead if no WhatsApp template configured
                 console.warn('[send-blunt] No WhatsApp template configured. Falling back to SMS.');
                 const fallbackBody = `You have received a Blunt Truth from an anonymous source.\n\nRead it here: ${viewUrl}`;
 
@@ -131,9 +187,8 @@ serve(async (req) => {
         }
 
         // --- REPLY NOTIFICATION ---
-        // Sent when the sender replies back in a chat thread
         if (blunt.deliveryMode === 'REPLY_NOTIFICATION') {
-            const recipientEmail = blunt.recipientNumber; // the recipient's email
+            const recipientEmail = blunt.recipientNumber;
             const res = await fetch('https://api.brevo.com/v3/smtp/email', {
                 method: 'POST',
                 headers,

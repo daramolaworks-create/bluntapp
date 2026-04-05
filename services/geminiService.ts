@@ -1,65 +1,39 @@
-import { GoogleGenAI } from "@google/genai";
 import { ModerationResult } from '../types';
 
-const getAiClient = () => {
-  if (!process.env.API_KEY) {
-    console.warn("API_KEY is missing. Moderation will be skipped (DEV ONLY).");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
-};
+// Moderation now runs server-side via the Edge Function
+// This keeps the Gemini API key secure (never exposed in the browser)
+
+const EDGE_FUNCTION_URL = import.meta.env.DEV
+    ? 'http://localhost:8000'
+    : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-blunt`;
 
 export const moderateContent = async (text: string): Promise<ModerationResult> => {
-  const ai = getAiClient();
-
-  if (!ai) {
-    // If no API key, fail safe or allow (depending on policy). 
-    // For MVP demo purposes, we might allow, but strictly normally we'd block.
-    // Let's mock a pass for empty key to allow UI testing if key is missing, 
-    // but log it.
-    return { safe: true };
-  }
-
   try {
-    const model = "gemini-3-flash-preview";
-    const prompt = `
-      You are a content moderation system for an app called 'Blunt'.
-      
-      Your task is to analyze the following text and determine if it violates our safety policy.
-      
-      Policy Violations include:
-      1. Threats of violence.
-      2. Obvious hate speech.
-      3. Illegal doxxing (sharing private addresses, phone numbers, etc).
-      4. Explicit self-harm encouragement.
-      
-      Text to analyze: "${text}"
-      
-      Respond with strictly one word: "SAFE" or "VIOLATION".
-    `;
-
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blunt: {
+          content: text,
+          recipientNumber: 'moderation-check',
+          deliveryMode: 'MODERATE'
+        }
+      }),
     });
 
-    const resultText = response.text?.trim().toUpperCase();
+    const data = await response.json();
 
-    if (resultText === 'VIOLATION') {
+    if (data.success && data.safe === false) {
       return {
         safe: false,
-        reason: "Your message violates Blunt policy. It contains hate speech, violence, or sensitive private info. Rephrase."
+        reason: data.reason || "Content violation detected."
       };
     }
 
     return { safe: true };
 
   } catch (error) {
-    console.error("Moderation error:", error);
-    // FALLBACK FOR DEMO/MVP:
-    // If the API fails (network, key, etc), we allow the content but log a warning.
-    // In a real strict production app, you might block this.
-    console.warn("Moderation API failed. Defaulting to SAFE mode for user experience.");
+    console.warn("[Moderation] Server-side moderation unavailable, defaulting to safe:", error);
     return { safe: true };
   }
 };

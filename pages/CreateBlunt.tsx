@@ -26,9 +26,12 @@ export const CreateBlunt: React.FC = () => {
 
   // Check limit on mount and enforce guest anonymity
   React.useEffect(() => {
-    const status = checkLimit(user.id, user.isGuest);
-    setRemaining(status.remaining);
-    if (!status.allowed) setLimitReached(true);
+    const init = async () => {
+      const status = await checkLimit(user.id, user.isGuest);
+      setRemaining(status.remaining);
+      if (!status.allowed) setLimitReached(true);
+    };
+    init();
 
     // Guests must be anonymous
     if (user.isGuest) setIsAnonymous(true);
@@ -90,7 +93,7 @@ export const CreateBlunt: React.FC = () => {
 
   const handleSubmit = async () => {
     // 0. Rate Limit Check
-    const status = checkLimit(user.id, user.isGuest);
+    const status = await checkLimit(user.id, user.isGuest);
     if (!status.allowed) {
       setLimitReached(true);
       if (user.isGuest) setShowAuthModal(true);
