@@ -121,7 +121,7 @@ export const Home: React.FC = () => {
 
         const userBlunts: FeedItem[] = publicBlunts.map(b => ({
           id: b.id,
-          category: 'Public',
+          category: b.category || 'Personal',
           text: b.content,
           time: formatTime(b.createdAt),
           realCount: reactionCounts[b.id] || 0,

@@ -15,6 +15,7 @@ export interface BluntMessage {
   attachmentType?: 'image' | 'file';
   attachmentName?: string;
   postToFeed?: boolean;
+  category?: string;
   denied?: boolean;
 }
 

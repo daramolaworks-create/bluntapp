@@ -38,6 +38,7 @@ const mapFromDB = (row: any): BluntMessage => ({
   attachmentType: row.attachment_type as any,
   attachmentName: row.attachment_name,
   postToFeed: row.post_to_feed,
+  category: row.category,
   replies: (row.replies || []).map((r: any) => ({
     id: r.id,
     content: r.content,
@@ -64,7 +65,8 @@ const mapToDB = (msg: BluntMessage, userId: string): any => ({
   attachment: msg.attachment,
   attachment_type: msg.attachmentType,
   attachment_name: msg.attachmentName,
-  post_to_feed: msg.postToFeed || false
+  post_to_feed: msg.postToFeed || false,
+  category: msg.category || null
 });
 
 export const saveBlunt = async (blunt: BluntMessage): Promise<void> => {

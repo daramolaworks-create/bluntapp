@@ -53,6 +53,7 @@ export const CreateBlunt: React.FC = () => {
   const [allowReply, setAllowReply] = useState(true);
   const [scheduledFor, setScheduledFor] = useState<string>(new Date().toISOString().slice(0, 16));
   const [postToFeed, setPostToFeed] = useState(false);
+  const [category, setCategory] = useState('Personal');
 
   // UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,7 +164,8 @@ export const CreateBlunt: React.FC = () => {
       attachment: attachmentUrl,
       attachmentName,
       attachmentType,
-      postToFeed // [NEW] Add to type definition if needed, or assume backend handles it. For now, adding to object.
+      postToFeed,
+      category: postToFeed ? category : undefined
     };
 
     // 3. Save & Deliver
@@ -428,6 +430,28 @@ export const CreateBlunt: React.FC = () => {
               <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${postToFeed ? 'translate-x-6' : 'translate-x-0'}`} />
             </div>
           </div>
+
+          {/* Category Selector — only when posting to feed */}
+          {postToFeed && (
+            <div className="p-3 bg-brand-bright/5 rounded-2xl space-y-3 animate-fade-in">
+              <p className="text-[10px] font-bold text-brand-deep/40 uppercase tracking-wider pl-1">Choose a category</p>
+              <div className="flex flex-wrap gap-2">
+                {['Personal', 'Workplace', 'Safety', 'Family', 'Relationships', 'Confession'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                      category === cat
+                        ? 'bg-brand-deep text-white shadow-sm scale-105'
+                        : 'bg-white text-brand-deep/50 hover:text-brand-deep/80 border border-brand-deep/10'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Allow Replies Protocol */}
           <div className="flex items-center justify-between p-3 bg-brand-cream/50 rounded-2xl">
