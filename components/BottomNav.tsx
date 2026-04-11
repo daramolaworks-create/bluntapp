@@ -39,15 +39,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenSettings, activeTab 
                     <span className="text-[10px] font-bold">Activity</span>
                 </button>
 
-                {/* Settings */}
-                <button
-                    onClick={onOpenSettings}
-                    className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'settings' ? 'text-[#0067f5] scale-105' : 'text-brand-deep/40 hover:text-brand-deep/70'}`}
-                >
-                    <Settings size={24} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
-                    <span className="text-[10px] font-bold">Settings</span>
-                </button>
-
                 {/* Chat */}
                 <button
                     onClick={() => navigate('/chat')}
@@ -55,6 +46,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenSettings, activeTab 
                 >
                     <MessageCircle size={24} strokeWidth={activeTab === 'chat' ? 2.5 : 2} />
                     <span className="text-[10px] font-bold">Chat</span>
+                </button>
+
+                {/* Settings */}
+                <button
+                    onClick={onOpenSettings}
+                    className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'settings' ? 'text-[#0067f5] scale-105' : 'text-brand-deep/40 hover:text-brand-deep/70'}`}
+                >
+                    <Settings size={24} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+                    <span className="text-[10px] font-bold">Settings</span>
                 </button>
 
             </div>
