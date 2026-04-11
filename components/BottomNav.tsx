@@ -15,7 +15,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenSettings, activeTab 
     if (user.isGuest) return null;
 
     return (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4">
+        <div 
+            className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4"
+            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+        >
             <div className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-6 py-4 flex justify-between items-center">
 
                 {/* Home */}

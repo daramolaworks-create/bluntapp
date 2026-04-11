@@ -35,7 +35,11 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-end p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+        <div 
+            className="fixed inset-0 z-50 flex items-start justify-end px-4 pb-4 bg-black/50 backdrop-blur-sm animate-fade-in" 
+            style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+            onClick={onClose}
+        >
             <div
                 className="bg-white w-full max-w-sm mt-16 rounded-3xl overflow-hidden shadow-2xl animate-slide-up"
                 onClick={e => e.stopPropagation()}

@@ -81,7 +81,7 @@ export const MenuModal: React.FC<MenuModalProps> = ({ isOpen, onClose, onOpenSup
                 </div>
 
                 {/* Content */}
-                <div className="p-6 overflow-y-auto">
+                <div className="p-6 overflow-y-auto" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
                     <div className="space-y-6">
                         {/* User Info - Clickable to go to settings */}
                         <div
